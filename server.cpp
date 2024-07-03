@@ -34,19 +34,19 @@ public:
         stat.down = false;
     }
 
-    void statChanging(int timer, unsigned short button);
+    void statChanging(unsigned short button);
 };
 
-void elevator::statChanging(int timer, unsigned short button) {
+void elevator::statChanging(unsigned short button) {
     if (stat.floor_1_idle) {
-        if (button == 1 || button == 3) {
+        if (button & (1 << 0) || button & (1 << 2)) {
             stat.floor_1_open = true;
             stat.floor_1_idle = false;
             button_mutex.lock();
-            button = 0;
+            button |= 0;
             button_mutex.unlock();
             std::this_thread::sleep_for(std::chrono::seconds(2));
-        } else if (button == 2|| button == 4) {
+        } else if (button & (1 << 1)|| button & (1 << 3)) {
             stat.lift = true;
             stat.floor_1_idle = false;
             button_mutex.lock();
@@ -56,14 +56,14 @@ void elevator::statChanging(int timer, unsigned short button) {
         }
     }
     else if(stat.floor_1_open){
-        if (button == 1 || button == 3) {
+        if (button & (1 << 0) || button & (1 << 2)) {
             stat.floor_1_open = true;
             stat.floor_1_idle = false;
             button_mutex.lock();
             button = 0;
             button_mutex.unlock();
             std::this_thread::sleep_for(std::chrono::seconds(2));
-        } else if (button == 2|| button == 4) {
+        } else if (button & (1 << 1)|| button & (1 << 3)) {
             stat.lift = true;
             stat.floor_1_idle = false;
             button_mutex.lock();
@@ -77,7 +77,7 @@ void elevator::statChanging(int timer, unsigned short button) {
         }
     }
     else if(stat.floor_2_idle){
-        if (button == 2 || button == 4) {
+        if (button & (1 << 1)|| button & (1 << 3)) {
             stat.floor_2_open = true;
             stat.floor_2_idle = false;
             button_mutex.lock();
@@ -85,7 +85,24 @@ void elevator::statChanging(int timer, unsigned short button) {
             button_mutex.unlock();
             std::this_thread::sleep_for(std::chrono::seconds(2));
         } 
-        else if (button == 1|| button == 3) {
+        else if (button & (1 << 0) || button & (1 << 2)) {
+            stat.down = true;
+            stat.floor_2_idle = false;
+            button_mutex.lock();
+            button = 0;
+            button_mutex.unlock();
+            std::this_thread::sleep_for(std::chrono::seconds(5));
+        }
+    }
+    else if(stat.floor_2_open){
+        if (button & (1 << 1)|| button & (1 << 3)) {
+            stat.floor_2_open = true;
+            stat.floor_2_idle = false;
+            button_mutex.lock();
+            button = 0;
+            button_mutex.unlock();
+            std::this_thread::sleep_for(std::chrono::seconds(2));
+        } else if (button & (1 << 0) || button & (1 << 2)) {
             stat.down = true;
             stat.floor_2_idle = false;
             button_mutex.lock();
@@ -98,30 +115,14 @@ void elevator::statChanging(int timer, unsigned short button) {
             stat.floor_2_open = false;
         }
     }
-    else if(stat.floor_2_open){
-        if (button == 2 || button == 4) {
-            stat.floor_2_open = true;
-            stat.floor_2_idle = false;
-            button_mutex.lock();
-            button = 0;
-            button_mutex.unlock();
-            std::this_thread::sleep_for(std::chrono::seconds(2));
-        } else if (button == 1|| button == 3) {
-            stat.down = true;
-            stat.floor_2_idle = false;
-            button_mutex.lock();
-            button = 0;
-            button_mutex.unlock();
-            std::this_thread::sleep_for(std::chrono::seconds(5));
-        }
-    }
     else if(stat.lift){
         stat.lift = false;
-        stat.floor_2_idle = true;
+        stat.floor_2_open = true;
+        std::this_thread::sleep_for(std::chrono::seconds(2));
     }
     else if(stat.down){
         stat.down = false;
-        stat.floor_1_idle = true;
+        stat.floor_1_open = true;
     }
 }
 
@@ -139,10 +140,11 @@ void clientHandler(int clientSockfd) {
         recv(clientSockfd, buffer, sizeof(buffer), 0);
         unsigned short button = atoi(buffer);
         //printf("Received button input: %hu\n", button);
-        e.statChanging(0, button);
+        e.statChanging(button);
         sendState(clientSockfd);
     }
 }
+
 
 void printState() {
     while (true) {
