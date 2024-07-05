@@ -206,9 +206,6 @@ int main() {
     // 等待print結束
     printThread.join();
 
-    // 處理客戶端請求
-    clientHandler(clientSockfd);
-
     close(clientSockfd);
     close(serverSockfd);
 
